@@ -307,7 +307,7 @@ void ReadEEPROM() {
 
 void CaliberateRobotSensor() {
   Serial.println("Press SW_B to start caribrate Front Sensor");
-  SW_B();
+  SW_A();
   Serial.println("Caribrating");
   delay(500);
   CalibrateSensor(20, 200);
@@ -364,15 +364,15 @@ void SW() {
 
   while (1) {
 
-    if (SW_A_PRESS() == PRESS) {
-      delay(20);                 // debounce
-      while (SW_A_PRESS() == PRESS); // รอปล่อย
-      break;                     // ออกโหมดตั้งค่า
-    }
-
     if (SW_B_PRESS() == PRESS) {
       delay(20);                 // debounce
       while (SW_B_PRESS() == PRESS); // รอปล่อย
+      break;                     // ออกโหมดตั้งค่า
+    }
+
+    if (SW_A_PRESS() == PRESS) {
+      delay(20);                 // debounce
+      while (SW_A_PRESS() == PRESS); // รอปล่อย
       CaliberateRobotSensor();   // calibrate ครั้งเดียว
     }
   }
