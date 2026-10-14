@@ -1,7 +1,6 @@
 #include "Motor.h"
 #include <EEPROM.h>
 
-
 #define SWA_PIN 7
 #define SWB_PIN 4
 #define PRESS 0
@@ -18,8 +17,8 @@ int LastError;
 int Ref = 500;
 int volumesound = 2700;
 
-uint8_t F_PIN[NUM_SENSORS] = { 0, 1, 2, 3, 4, 5, 6, 7};
-//int F[16];
+uint8_t F_PIN[NUM_SENSORS] = {0, 1, 2, 3, 4, 5, 6, 7};
+// int F[16];
 int sensorValues[16];
 int LCh, LTurnSpdL, LTurnSpdR, TurnDelayL;
 int RCh, RTurnSpdL, RTurnSpdR, TurnDelayR;
@@ -29,17 +28,17 @@ int MaxSpeed = 100;
 int MinSpeed = -25;
 int ModePidStatus = 0;
 
-unsigned char dottedline = 0;  // ตรวจเส้นประ (1 = ใช่)
+unsigned char dottedline = 0; // ตรวจเส้นประ (1 = ใช่)
 void RobotSetup() {
   Serial.begin(115200);
-   Serial.println("Robot Ready");
+  Serial.println("Robot Ready");
   pinMode(SWA_PIN, INPUT);
   pinMode(SWB_PIN, INPUT);
   pinMode(PH1, OUTPUT);
-  pinMode(EN1, OUTPUT);  
+  pinMode(EN1, OUTPUT);
   pinMode(PH2, OUTPUT);
   pinMode(EN2, OUTPUT);
-   pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
   tone(BUZZER_PIN, 2000, 80);
   delay(100);
   tone(BUZZER_PIN, 1000, 80);
@@ -48,42 +47,50 @@ void RobotSetup() {
   delay(100);
 }
 
-
 void Beep(int delayb) {
   tone(BUZZER_PIN, volumesound, delayb);
   delay(delayb);
   noTone(BUZZER_PIN);
 }
 void BZON() {
-  tone(BUZZER_PIN, volumesound);  // ส่งเสียง 1 kHz
+  tone(BUZZER_PIN, volumesound); // ส่งเสียง 1 kHz
 }
 void BZOFF() {
-  noTone(BUZZER_PIN);  // หยุดเสียง
+  noTone(BUZZER_PIN); // หยุดเสียง
 }
 
-
-void SetValueLine(int x){
+void SetValueLine(int x) {
   Ref = x;
 }
 
 int analog(int __ch) {
-  if(__ch==0) return analogRead(A0);
-  if(__ch==1) return analogRead(A1);
-  if(__ch==2) return analogRead(A2);
-  if(__ch==3) return analogRead(A3);
-  if(__ch==4) return analogRead(A4);
-  if(__ch==5) return analogRead(A5);
-  if(__ch==6) return analogRead(A6);
-  if(__ch==7) return analogRead(A7);
+  if (__ch == 0)
+    return analogRead(A0);
+  if (__ch == 1)
+    return analogRead(A1);
+  if (__ch == 2)
+    return analogRead(A2);
+  if (__ch == 3)
+    return analogRead(A3);
+  if (__ch == 4)
+    return analogRead(A4);
+  if (__ch == 5)
+    return analogRead(A5);
+  if (__ch == 6)
+    return analogRead(A6);
+  if (__ch == 7)
+    return analogRead(A7);
 }
 
-
-
 int digital(int __ch) {
-  if(__ch==10) return digitalRead(10);
-  if(__ch==11) return digitalRead(11);
-  if(__ch==12) return digitalRead(12);
-  if(__ch==13) return digitalRead(13);
+  if (__ch == 10)
+    return digitalRead(10);
+  if (__ch == 11)
+    return digitalRead(11);
+  if (__ch == 12)
+    return digitalRead(12);
+  if (__ch == 13)
+    return digitalRead(13);
 }
 
 void SW_A() {
@@ -107,14 +114,16 @@ void SW_B() {
 }
 
 int SW_A_PRESS() {
-  if (digitalRead(SWA_PIN) == PRESS) return PRESS;
+  if (digitalRead(SWA_PIN) == PRESS)
+    return PRESS;
   else {
     return 1;
   }
 }
 
 int SW_B_PRESS() {
-  if (digitalRead(SWB_PIN) == PRESS) return PRESS;
+  if (digitalRead(SWB_PIN) == PRESS)
+    return PRESS;
   else {
     return 1;
   }
@@ -178,8 +187,6 @@ void SensorValue(uint16_t minF0, uint16_t minF1, uint16_t minF2, uint16_t minF3,
 
 // }
 
-
-
 void Read() {
   F[0] = analogRead(A0);
   F[1] = analogRead(A1);
@@ -191,7 +198,6 @@ void Read() {
   F[7] = analogRead(A7);
 }
 
-
 void ReadCalibrate() {
   Read();
   for (int i = 0; i < NUM_SENSORS; i++) {
@@ -200,14 +206,17 @@ void ReadCalibrate() {
       x = map(F[i], MinValue[i], MaxValue[i], 1000, 0);
     else
       x = map(F[i], MinValue[i], MaxValue[i], 0, 1000);
-    if (x < 200)   x = 0;
-    if (x > 900)  x = 1000;
-    if (x < 0)    x = 0;
-    if (x > 1000) x = 1000;
+    if (x < 200)
+      x = 0;
+    if (x > 900)
+      x = 1000;
+    if (x < 0)
+      x = 0;
+    if (x > 1000)
+      x = 1000;
     F[i] = x;
   }
 }
-
 
 void TurnSpeedLeft(int Ch, int l, int r, int de) {
   LCh = Ch;
@@ -227,23 +236,24 @@ void TrackLineColor(int Col) {
   LineColor = Col;
 }
 
-
 #define EEPROM_FLAG_ADDR 100
-#define EEPROM_DATA_START 0   // จุดเริ่มเก็บ Min/Max
+#define EEPROM_DATA_START 0 // จุดเริ่มเก็บ Min/Max
 
 void WriteEEPROM() {
-
   for (int i = 0; i < NUM_SENSORS; i++) {
-
     // กันค่าผิดพลาด
-    if (MinValue[i] > 1023) MinValue[i] = 1023;
-    if (MaxValue[i] > 1023) MaxValue[i] = 1023;
-    if (MinValue[i] < 0)    MinValue[i] = 0;
-    if (MaxValue[i] < 0)    MaxValue[i] = 0;
+    if (MinValue[i] > 1023)
+      MinValue[i] = 1023;
+    if (MaxValue[i] > 1023)
+      MaxValue[i] = 1023;
+    if (MinValue[i] < 0)
+      MinValue[i] = 0;
+    if (MaxValue[i] < 0)
+      MaxValue[i] = 0;
 
     int addr = EEPROM_DATA_START + (i * 4); // 1 sensor = 4 bytes
 
-    EEPROM.put(addr,     (uint16_t)MinValue[i]); // 2 bytes
+    EEPROM.put(addr, (uint16_t)MinValue[i]);     // 2 bytes
     EEPROM.put(addr + 2, (uint16_t)MaxValue[i]); // 2 bytes
   }
 
@@ -256,9 +266,8 @@ void CalibrateSensor(int pauseTime, int samples) {
     MaxValue[i] = 0;
   }
   for (int startSamp = 0; startSamp <= samples; startSamp++) {
-  
-     Read();
-  
+    Read();
+
     for (int i = 0; i < NUM_SENSORS; i++) {
       MinValue[i] = (F[i] <= MinValue[i] ? F[i] : MinValue[i]);
       MaxValue[i] = (F[i] >= MaxValue[i] ? F[i] : MaxValue[i]);
@@ -283,23 +292,26 @@ void ReadEEPROM() {
     EEPROM.get(addr, MinValue[i]);
     EEPROM.get(addr + 2, MaxValue[i]);
 
-   
-     // แสดงผลทาง Serial
-   Serial.println("Load EEPROM");
-  Serial.println("  ");
-  Serial.print("SensorValue (");
-  //MinValue
-  for (int i = 0; i < NUM_SENSORS; i++) {
-    Serial.print(MinValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.print(",");
-  }
-  //MaxValue
-  for (int i = 0; i < NUM_SENSORS; i++) {
-    Serial.print(MaxValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.println(");");
-  }
+    // แสดงผลทาง Serial
+    Serial.println("Load EEPROM");
+    Serial.println("  ");
+    Serial.print("SensorValue (");
+    // MinValue
+    for (int i = 0; i < NUM_SENSORS; i++) {
+      Serial.print(MinValue[i]);
+      if (i < NUM_SENSORS - 1)
+        Serial.print(",");
+      else
+        Serial.print(",");
+    }
+    // MaxValue
+    for (int i = 0; i < NUM_SENSORS; i++) {
+      Serial.print(MaxValue[i]);
+      if (i < NUM_SENSORS - 1)
+        Serial.print(",");
+      else
+        Serial.println(");");
+    }
   }
 
   Serial.println(F("------------------------"));
@@ -315,25 +327,29 @@ void CaliberateRobotSensor() {
   Serial.println("Finish");
   Serial.println("  ");
   Serial.print("SensorValue (");
-  //MinValue
+  // MinValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MinValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.print(",");
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.print(",");
   }
-  //MaxValue
+  // MaxValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MaxValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.println(");");
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.println(");");
   }
-  WriteEEPROM() ;
+  WriteEEPROM();
   while (1)
     ;
 }
 void SerialSensor() {
   while (1) {
-  Read();
+    Read();
     for (int _serialF = 0; _serialF < NUM_SENSORS; _serialF++) {
       Serial.print(F[_serialF]);
       Serial.print("\t");
@@ -343,13 +359,10 @@ void SerialSensor() {
   }
 }
 
-
-
 void SerialCalibrateSensor() {
   while (1) {
+    ReadCalibrate();
 
-     ReadCalibrate();
- 
     for (int _serialF = 0; _serialF < NUM_SENSORS; _serialF++) {
       Serial.print(F[_serialF]);
       Serial.print("\t");
@@ -359,38 +372,52 @@ void SerialCalibrateSensor() {
   }
 }
 
-void SW() {
+// SW() : กด A = calibrate, กด B กี่ครั้งก็ได้ แล้วรอ SW_TIMEOUT ms -> คืนค่าจำนวนครั้งที่กด B
+// เช่น  SW();  แล้วใช้ switch (Mode)  หรือ  int m = SW();
+#define SW_TIMEOUT 1000
+int Mode = 0; // จำนวนครั้งที่กด B ล่าสุด (SW() ตั้งค่าให้อัตโนมัติ ใช้ใน Mission ได้เลย)
+int SW() {
   MotorStop();
+  int count = 0;
+  unsigned long lastPress = 0;
 
   while (1) {
-
     if (SW_B_PRESS() == PRESS) {
-      delay(20);                 // debounce
-      while (SW_B_PRESS() == PRESS); // รอปล่อย
-      break;                     // ออกโหมดตั้งค่า
+      delay(20); // debounce
+      while (SW_B_PRESS() == PRESS)
+        ; // รอปล่อย
+      delay(20);
+      count++;
+      Beep(50); // บี๊บ 1 ครั้งต่อการกด 1 ครั้ง
+      Serial.print("B x");
+      Serial.println(count);
+      lastPress = millis();
     }
 
-    if (SW_A_PRESS() == PRESS) {
-      delay(20);                 // debounce
-      while (SW_A_PRESS() == PRESS); // รอปล่อย
-      CaliberateRobotSensor();   // calibrate ครั้งเดียว
+    // กด B แล้วไม่กดเพิ่มภายใน SW_TIMEOUT -> จบ คืนค่าจำนวนครั้ง
+    if (count > 0 && millis() - lastPress > SW_TIMEOUT) {
+      Mode = count;
+      Serial.print("Mode = ");
+      Serial.println(count);
+      return count;
+    }
+
+    if (count == 0 && SW_A_PRESS() == PRESS) {
+      delay(20); // debounce
+      while (SW_A_PRESS() == PRESS)
+        ;                      // รอปล่อย
+      CaliberateRobotSensor(); // calibrate ครั้งเดียว
     }
   }
 }
 
-
-
-
-void ModeSpdPID(int moD, int maX, int miN){
+void ModeSpdPID(int moD, int maX, int miN) {
   ModePidStatus = moD;
   MaxSpeed = maX;
   MinSpeed = miN;
 }
 
-
-
-
-void Dottedline(int Dot){
+void Dottedline(int Dot) {
   dottedline = Dot;
 }
 
@@ -414,8 +441,7 @@ int readPosition(int Track, int noise) {
     if (dottedline) {
       return last_value;
     }
-    if (last_value < (NUM_SENSORS - 1) * 1000) 
-    {
+    if (last_value < (NUM_SENSORS - 1) * 1000) {
       return 0;
     } else {
       return (NUM_SENSORS - 1) * 1000;
@@ -426,38 +452,53 @@ int readPosition(int Track, int noise) {
 }
 
 void PID(int Speed, float Kp, float Kd) {
-  
   int Pos = readPosition(250, 50);
-   int Error = Pos - ((NUM_SENSORS - 1) * 1000 / 2);
+  int Error = Pos - ((NUM_SENSORS - 1) * 1000 / 2);
 
-  int PID_Value = (Kp* Error) + (Kd * (Error - LastError));
+  int PID_Value = (Kp * Error) + (Kd * (Error - LastError));
   LastError = Error;
   int LeftPower = Speed + PID_Value;
   int RightPower = Speed - PID_Value;
   switch (ModePidStatus) {
     case 0:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = MinSpeed;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < 0)
+        LeftPower = MinSpeed;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < 0)
+        RightPower = MinSpeed;
       break;
     case 1:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < MinSpeed) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < MinSpeed) RightPower = MinSpeed;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < MinSpeed)
+        LeftPower = MinSpeed;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < MinSpeed)
+        RightPower = MinSpeed;
       break;
     case 2:
-      if (LeftPower > LeftBaseSpeed) LeftPower = LeftBaseSpeed;
-      if (LeftPower < -LeftBaseSpeed) LeftPower = -LeftBaseSpeed;
-      if (RightPower > RightBaseSpeed) RightPower = RightBaseSpeed;
-      if (RightPower < -RightBaseSpeed) RightPower = -RightBaseSpeed;
+      if (LeftPower > LeftBaseSpeed)
+        LeftPower = LeftBaseSpeed;
+      if (LeftPower < -LeftBaseSpeed)
+        LeftPower = -LeftBaseSpeed;
+      if (RightPower > RightBaseSpeed)
+        RightPower = RightBaseSpeed;
+      if (RightPower < -RightBaseSpeed)
+        RightPower = -RightBaseSpeed;
       break;
     default:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = 0;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = 0;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < 0)
+        LeftPower = 0;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < 0)
+        RightPower = 0;
   }
   Motor(LeftPower, RightPower);
 }
@@ -474,7 +515,7 @@ int readPosition_8_16(int Track, int noise) {
       online = 1;
     }
     if (values > noise) {
-      avg += (long)(values) * ((i+4) * 1000);
+      avg += (long)(values) * ((i + 4) * 1000);
       sum += values;
     }
   }
@@ -483,8 +524,7 @@ int readPosition_8_16(int Track, int noise) {
       return last_value;
     }
     // i
-    if (last_value < 7500) 
-    {
+    if (last_value < 7500) {
       return 0;
     } else {
       // return (NUM_SENSORS - 1) * 1000;
@@ -496,38 +536,53 @@ int readPosition_8_16(int Track, int noise) {
 }
 
 void PID_8_16(int Speed, float Kp, float Kd) {
-  
   int Pos = readPosition_8_16(250, 50);
   //  int Error = Pos - ((NUM_SENSORS - 1) * 1000 / 2);
   int Error = Pos - 7500;
-  int PID_Value = (Kp* Error) + (Kd * (Error - LastError));
+  int PID_Value = (Kp * Error) + (Kd * (Error - LastError));
   LastError = Error;
   int LeftPower = Speed + PID_Value;
   int RightPower = Speed - PID_Value;
   switch (ModePidStatus) {
     case 0:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = MinSpeed;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < 0)
+        LeftPower = MinSpeed;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < 0)
+        RightPower = MinSpeed;
       break;
     case 1:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < MinSpeed) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < MinSpeed) RightPower = MinSpeed;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < MinSpeed)
+        LeftPower = MinSpeed;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < MinSpeed)
+        RightPower = MinSpeed;
       break;
     case 2:
-      if (LeftPower > LeftBaseSpeed) LeftPower = LeftBaseSpeed;
-      if (LeftPower < -LeftBaseSpeed) LeftPower = -LeftBaseSpeed;
-      if (RightPower > RightBaseSpeed) RightPower = RightBaseSpeed;
-      if (RightPower < -RightBaseSpeed) RightPower = -RightBaseSpeed;
+      if (LeftPower > LeftBaseSpeed)
+        LeftPower = LeftBaseSpeed;
+      if (LeftPower < -LeftBaseSpeed)
+        LeftPower = -LeftBaseSpeed;
+      if (RightPower > RightBaseSpeed)
+        RightPower = RightBaseSpeed;
+      if (RightPower < -RightBaseSpeed)
+        RightPower = -RightBaseSpeed;
       break;
     default:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = 0;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = 0;
+      if (LeftPower > MaxSpeed)
+        LeftPower = MaxSpeed;
+      if (LeftPower < 0)
+        LeftPower = 0;
+      if (RightPower > MaxSpeed)
+        RightPower = MaxSpeed;
+      if (RightPower < 0)
+        RightPower = 0;
   }
   Motor(LeftPower, RightPower);
 }
@@ -567,7 +622,7 @@ void TrackSelect(int spd, char x) {
     delay(5);
     while (1) {
       ReadCalibrate();
-      if (F[0] < Ref &&  F[7] < Ref) {
+      if (F[0] < Ref && F[7] < Ref) {
         BZOFF();
         break;
       }
@@ -578,7 +633,7 @@ void TrackSelect(int spd, char x) {
       BZON();
       Motor(spd / 2, spd / 2);
       ReadCalibrate();
-      if (F[0] < Ref ) {
+      if (F[0] < Ref) {
         BZOFF();
         delay(15);
         break;
@@ -602,10 +657,6 @@ void TrackSelect(int spd, char x) {
     Beep(30);
   }
 }
-
-
-
-
 
 void TrackTime(int Speed, float Kp, float Kd, int TotalTime) {
   unsigned long StartTime = millis();
@@ -678,8 +729,3 @@ void SerialPosition() {
     delay(50);
   }
 }
-
-
-
-
-

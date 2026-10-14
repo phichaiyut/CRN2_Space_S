@@ -1,0 +1,18 @@
+# Arduino-style formatting
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+ColumnLimit: 0
+SortIncludes: Never
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+BreakBeforeBraces: Attach
+IndentCaseLabels: true
+AlignTrailingComments: true
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Right
+SpaceBeforeParens: ControlStatements
+KeepEmptyLinesAtTheStartOfBlocks: false

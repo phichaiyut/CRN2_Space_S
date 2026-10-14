@@ -2,7 +2,6 @@
 #include <light_CD74HC4067.h>
 #include <EEPROM.h>
 
-
 #define SWA_PIN 7
 #define SWB_PIN 4
 #define PRESS 0
@@ -13,6 +12,10 @@ uint16_t MinValue[NUM_SENSORS];
 uint16_t MaxValue[NUM_SENSORS];
 uint16_t F[NUM_SENSORS];
 
+uint16_t MinValueC[2];
+uint16_t MaxValueC[2];
+uint16_t C[2];
+
 CD74HC4067 my_mux(18, 17, 16, 15);
 const int signal_pin = A0;
 
@@ -20,34 +23,42 @@ int BUZZER_PIN = 10;
 
 int LastError;
 int Ref = 500;
+int RefC = 900;
 int volumesound = 2700;
 int Dist = 11;
-uint8_t F_PIN[NUM_SENSORS] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-
+uint8_t F_PIN[NUM_SENSORS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+uint8_t C_PIN[2] = {A6, A7};
 int sensorValues[NUM_SENSORS];
 int LCh, LTurnSpdL, LTurnSpdR, TurnDelayL;
 int RCh, RTurnSpdL, RTurnSpdR, TurnDelayR;
 int LeftBaseSpeed, RightBaseSpeed, BackLeftBaseSpeed, BackRightBaseSpeed;
 int LineColor = 0;
+int LineColorC = 0;
 int MaxSpeed = 100;
 int MinSpeed = -25;
 int ModePidStatus = 0;
 int sensor_L = 0;
 int sensor_R = 15;
-unsigned char dottedline = 0;  // ตรวจเส้นประ (1 = ใช่)
+unsigned char dottedline = 0; // ตรวจเส้นประ (1 = ใช่)
+int FRONT_MIN = 200;
+int FRONT_MAX = 900;
+int CENTER_MIN = 200;
+int CENTER_MAX = 900;
+
+#include "pid.h" // ModeSpdPID, Dottedline, readPosition, PID, SerialPosition
 
 void RobotSetup() {
   Serial.begin(115200);
-   Serial.println("Robot Ready");
+  Serial.println("Robot Ready");
   pinMode(SWA_PIN, INPUT);
   pinMode(SWB_PIN, INPUT);
   pinMode(PH1, OUTPUT);
-  pinMode(EN1, OUTPUT);  
+  pinMode(EN1, OUTPUT);
   pinMode(PH2, OUTPUT);
   pinMode(EN2, OUTPUT);
-   pinMode(BUZZER_PIN, OUTPUT);
-   pinMode(Dist, INPUT);
-   pinMode(signal_pin, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(Dist, INPUT);
+  pinMode(signal_pin, INPUT);
   tone(BUZZER_PIN, 2000, 80);
   delay(100);
   tone(BUZZER_PIN, 1000, 80);
@@ -56,14 +67,13 @@ void RobotSetup() {
   delay(100);
 }
 
-void BeepBeep(){
-    tone(BUZZER_PIN, 2000, 80);
+void BeepBeep() {
+  tone(BUZZER_PIN, 2000, 80);
   delay(100);
   tone(BUZZER_PIN, 1000, 80);
   delay(100);
   tone(BUZZER_PIN, 2000, 150);
   delay(100);
-
 }
 void Beep(int delayb) {
   tone(BUZZER_PIN, volumesound, delayb);
@@ -71,44 +81,66 @@ void Beep(int delayb) {
   noTone(BUZZER_PIN);
 }
 void BZON() {
-  tone(BUZZER_PIN, volumesound);  // ส่งเสียง 1 kHz
+  tone(BUZZER_PIN, volumesound); // ส่งเสียง 1 kHz
 }
 void BZOFF() {
-  noTone(BUZZER_PIN);  // หยุดเสียง
+  noTone(BUZZER_PIN); // หยุดเสียง
 }
 
-
-void SetValueLine(int x){
+void SetValueLine(int x) {
   Ref = x;
 }
-
-void SetDistance(int x){
-    Dist = x;
+void SetValueLineC(int x) {
+  RefC = x;
 }
 
-void SetTrackLineCh(int sl, int sr){
-    sensor_L = sl;
-    sensor_R = sr;
+void clampSensorValueF(int x, int y) {
+  FRONT_MIN = x;
+  FRONT_MAX = y;
+}
+
+void clampSensorValueC(int x, int y) {
+  CENTER_MIN = x;
+  CENTER_MAX = y;
+}
+
+void SetDistance(int x) {
+  Dist = x;
+}
+
+void SetTrackLineCh(int sl, int sr) {
+  sensor_L = sl;
+  sensor_R = sr;
 }
 
 int analog(int __ch) {
-  if(__ch==0) return analogRead(A0);
-  if(__ch==1) return analogRead(A1);
-  if(__ch==2) return analogRead(A2);
-  if(__ch==3) return analogRead(A3);
-  if(__ch==4) return analogRead(A4);
-  if(__ch==5) return analogRead(A5);
-  if(__ch==6) return analogRead(A6);
-  if(__ch==7) return analogRead(A7);
+  if (__ch == 0)
+    return analogRead(A0);
+  if (__ch == 1)
+    return analogRead(A1);
+  if (__ch == 2)
+    return analogRead(A2);
+  if (__ch == 3)
+    return analogRead(A3);
+  if (__ch == 4)
+    return analogRead(A4);
+  if (__ch == 5)
+    return analogRead(A5);
+  if (__ch == 6)
+    return analogRead(A6);
+  if (__ch == 7)
+    return analogRead(A7);
 }
 
-
-
 int digital(int __ch) {
-  if(__ch==10) return digitalRead(10);
-  if(__ch==11) return digitalRead(11);
-  if(__ch==12) return digitalRead(12);
-  if(__ch==13) return digitalRead(13);
+  if (__ch == 10)
+    return digitalRead(10);
+  if (__ch == 11)
+    return digitalRead(11);
+  if (__ch == 12)
+    return digitalRead(12);
+  if (__ch == 13)
+    return digitalRead(13);
 }
 
 void SW_A() {
@@ -132,14 +164,16 @@ void SW_B() {
 }
 
 int SW_A_PRESS() {
-  if (digitalRead(SWA_PIN) == PRESS) return PRESS;
+  if (digitalRead(SWA_PIN) == PRESS)
+    return PRESS;
   else {
     return 1;
   }
 }
 
 int SW_B_PRESS() {
-  if (digitalRead(SWB_PIN) == PRESS) return PRESS;
+  if (digitalRead(SWB_PIN) == PRESS)
+    return PRESS;
   else {
     return 1;
   }
@@ -200,13 +234,11 @@ void SensorValue(uint16_t minF0, uint16_t minF1, uint16_t minF2, uint16_t minF3,
   MaxValue[13] = maxF13;
   MaxValue[14] = maxF14;
   MaxValue[15] = maxF15;
-
 }
-
-
 
 int analog16(int channel) {
   my_mux.channel(channel);
+  delayMicroseconds(100); // เพิ่มความหน่วงเวลาเพื่อให้มั่นใจว่า MUX ได้เลือกช่องสัญญาณเรียบร้อยแล้ว
   int val = analogRead(signal_pin);
   return val;
 }
@@ -217,24 +249,50 @@ void Read() {
   }
 }
 
-
+void ReadC() {
+  for (int _sensor = 0; _sensor < 2; _sensor++) {
+    C[_sensor] = analogRead(C_PIN[_sensor]);
+  }
+}
 
 void ReadCalibrate() {
   Read();
   for (int i = 0; i < NUM_SENSORS; i++) {
+    F[i] = constrain(F[i], MinValue[i], MaxValue[i]);
     int x;
     if (LineColor == 0)
       x = map(F[i], MinValue[i], MaxValue[i], 1000, 0);
     else
       x = map(F[i], MinValue[i], MaxValue[i], 0, 1000);
-    if (x < 200)   x = 0;
-    if (x > 900)  x = 1000;
-    if (x < 0)    x = 0;
-    if (x > 1000) x = 1000;
+    if (x < FRONT_MIN)
+      x = 0;
+    if (x > FRONT_MAX)
+      x = 1000;
+
     F[i] = x;
   }
 }
 
+void ReadCalibrateC() {
+  ReadC();
+  for (int i = 0; i < 2; i++) {
+    C[i] = constrain(C[i], MinValueC[i], MaxValueC[i]);
+    int x;
+    if (LineColorC == 0)
+      x = map(C[i], MinValueC[i], MaxValueC[i], 1000, 0);
+    else
+      x = map(C[i], MinValueC[i], MaxValueC[i], 0, 1000);
+    if (x < CENTER_MIN)
+      x = 0;
+    if (x > CENTER_MAX)
+      x = 1000;
+    C[i] = x;
+  }
+}
+
+int md_sensorC(int ch) {
+  return (MinValueC[ch] + MaxValueC[ch]) / 2;
+}
 
 void TurnSpeedLeft(int Ch, int l, int r, int de) {
   LCh = Ch;
@@ -254,27 +312,44 @@ void TrackLineColor(int Col) {
   LineColor = Col;
 }
 
+void TrackLineColorC(int Col) {
+  LineColorC = Col;
+}
 
 #define EEPROM_FLAG_ADDR 100
-#define EEPROM_DATA_START 0   // จุดเริ่มเก็บ Min/Max
+#define EEPROM_FLAG_C_ADDR 101                // flag ของเซนเซอร์ C
+#define EEPROM_DATA_START 0                   // จุดเริ่มเก็บ Min/Max (F: 0-63)
+#define EEPROM_DATA_C_START (NUM_SENSORS * 4) // จุดเริ่มเก็บ Min/Max ของ C (64-71)
 
 void WriteEEPROM() {
-
   for (int i = 0; i < NUM_SENSORS; i++) {
-
     // กันค่าผิดพลาด
-    if (MinValue[i] > 1023) MinValue[i] = 1023;
-    if (MaxValue[i] > 1023) MaxValue[i] = 1023;
-    if (MinValue[i] < 0)    MinValue[i] = 0;
-    if (MaxValue[i] < 0)    MaxValue[i] = 0;
+    if (MinValue[i] > 1023)
+      MinValue[i] = 1023;
+    if (MaxValue[i] > 1023)
+      MaxValue[i] = 1023;
 
     int addr = EEPROM_DATA_START + (i * 4); // 1 sensor = 4 bytes
 
-    EEPROM.put(addr,     (uint16_t)MinValue[i]); // 2 bytes
+    EEPROM.put(addr, (uint16_t)MinValue[i]);     // 2 bytes
     EEPROM.put(addr + 2, (uint16_t)MaxValue[i]); // 2 bytes
   }
 
-  EEPROM.update(EEPROM_FLAG_ADDR, 0xAA); // flag ว่าคาลิเบรตแล้ว
+  // เก็บค่า C
+  for (int i = 0; i < 2; i++) {
+    if (MinValueC[i] > 1023)
+      MinValueC[i] = 1023;
+    if (MaxValueC[i] > 1023)
+      MaxValueC[i] = 1023;
+
+    int addr = EEPROM_DATA_C_START + (i * 4);
+
+    EEPROM.put(addr, (uint16_t)MinValueC[i]);
+    EEPROM.put(addr + 2, (uint16_t)MaxValueC[i]);
+  }
+
+  EEPROM.update(EEPROM_FLAG_ADDR, 0xAA);   // flag ว่าคาลิเบรตแล้ว
+  EEPROM.update(EEPROM_FLAG_C_ADDR, 0xAA); // flag ว่าคาลิเบรต C แล้ว
   Serial.println("Calibrate complete (uint16_t saved)");
 }
 void CalibrateSensor(int pauseTime, int samples) {
@@ -282,11 +357,20 @@ void CalibrateSensor(int pauseTime, int samples) {
     MinValue[i] = 1000;
     MaxValue[i] = 0;
   }
+  for (int i = 0; i < 2; i++) {
+    MinValueC[i] = 1000;
+    MaxValueC[i] = 0;
+  }
   for (int startSamp = 0; startSamp <= samples; startSamp++) {
-     Read();
+    Read();
+    ReadC();
     for (int i = 0; i < NUM_SENSORS; i++) {
       MinValue[i] = (F[i] <= MinValue[i] ? F[i] : MinValue[i]);
       MaxValue[i] = (F[i] >= MaxValue[i] ? F[i] : MaxValue[i]);
+    }
+    for (int i = 0; i < 2; i++) {
+      MinValueC[i] = (C[i] <= MinValueC[i] ? C[i] : MinValueC[i]);
+      MaxValueC[i] = (C[i] >= MaxValueC[i] ? C[i] : MaxValueC[i]);
     }
     delay(pauseTime);
   }
@@ -294,73 +378,146 @@ void CalibrateSensor(int pauseTime, int samples) {
     MinValue[i] += 10;
     MaxValue[i] -= 40;
   }
+  for (int i = 0; i < 2; i++) {
+    MinValueC[i] += 10;
+    MaxValueC[i] -= 40;
+  }
+}
+
+void CalibrateSensorC(int pauseTime, int samples) {
+  for (int i = 0; i < 2; i++) {
+    MinValueC[i] = 1000;
+    MaxValueC[i] = 0;
+  }
+  for (int startSamp = 0; startSamp <= samples; startSamp++) {
+    ReadC();
+    for (int i = 0; i < 2; i++) {
+      MinValueC[i] = (C[i] <= MinValueC[i] ? C[i] : MinValueC[i]);
+      MaxValueC[i] = (C[i] >= MaxValueC[i] ? C[i] : MaxValueC[i]);
+    }
+    delay(pauseTime);
+  }
+  for (int i = 0; i < 2; i++) {
+    MinValueC[i] += 10;
+    MaxValueC[i] -= 40;
+  }
+}
+
+void PrintSensorValueC() {
+  Serial.print("SensorValueC (");
+  for (int i = 0; i < 2; i++) {
+    Serial.print(MinValueC[i]);
+    Serial.print(",");
+  }
+  for (int i = 0; i < 2; i++) {
+    Serial.print(MaxValueC[i]);
+    if (i < 1)
+      Serial.print(",");
+    else
+      Serial.println(");");
+  }
 }
 
 void ReadEEPROM() {
-  if (EEPROM.read(100) != 0xAA) {
+  if (EEPROM.read(EEPROM_FLAG_ADDR) != 0xAA) {
     Serial.println(F("EEPROM not calibrated"));
     return;
   }
 
-
   for (int i = 0; i < NUM_SENSORS; i++) {
-    int addr = i * 4;
+    int addr = EEPROM_DATA_START + (i * 4);
 
     EEPROM.get(addr, MinValue[i]);
     EEPROM.get(addr + 2, MaxValue[i]);
+  }
 
-    // แสดงผลทาง Serial
-   Serial.println("Load EEPROM");
+  // แสดงผลทาง Serial
+  Serial.println("Load EEPROM");
   Serial.println("  ");
   Serial.print("SensorValue (");
-  //MinValue
+  // MinValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MinValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.print(",");
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.print(",");
   }
-  //MaxValue
+  // MaxValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MaxValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.println(");");
-  }
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.println(");");
   }
 
-  
+  // โหลดค่า C
+  if (EEPROM.read(EEPROM_FLAG_C_ADDR) != 0xAA) {
+    Serial.println(F("EEPROM C not calibrated"));
+    return;
+  }
+
+  for (int i = 0; i < 2; i++) {
+    int addr = EEPROM_DATA_C_START + (i * 4);
+
+    EEPROM.get(addr, MinValueC[i]);
+    EEPROM.get(addr + 2, MaxValueC[i]);
+  }
+  PrintSensorValueC();
 }
 
 void CaliberateRobotSensor() {
-  Serial.println("Press SW_B to start caribrate Front Sensor");
+  Serial.println("Press SW_A to start caribrate Front Sensor");
   SW_A();
   Serial.println("Caribrating");
   delay(500);
   CalibrateSensor(20, 200);
+  BeepBeep();
+  delay(500);
+  Serial.println("Press SW_A to start caribrate Center Sensor");
+  SW_A();
+  Serial.println("Caribrating");
+  delay(500);
+  CalibrateSensorC(20, 200);
+  BeepBeep();
   delay(500);
   Serial.println("Finish");
   Serial.println("  ");
   Serial.print("SensorValue (");
-  //MinValue
+  // MinValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MinValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.print(",");
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.print(",");
   }
-  //MaxValue
+  // MaxValue
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(MaxValue[i]);
-    if (i < NUM_SENSORS - 1) Serial.print(",");
-    else Serial.println(");");
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.println(");");
   }
-  WriteEEPROM() ;
-//   while (1)
-//     ;
+  PrintSensorValueC();
+  WriteEEPROM();
+  //   while (1)
+  //     ;
 }
 void SerialSensor() {
   while (1) {
-  Read();
+    Read();
+    ReadC();
+    Serial.print("F\t");
     for (int _serialF = 0; _serialF < NUM_SENSORS; _serialF++) {
       Serial.print(F[_serialF]);
+      Serial.print("\t");
+    }
+    Serial.print("| C\t");
+    for (int _serialC = 0; _serialC < 2; _serialC++) {
+      Serial.print(C[_serialC]);
       Serial.print("\t");
     }
     Serial.println("");
@@ -368,13 +525,18 @@ void SerialSensor() {
   }
 }
 
-
-
 void SerialCalibrateSensor() {
   while (1) {
-     ReadCalibrate();
+    ReadCalibrate();
+    ReadCalibrateC();
+    Serial.print("F\t");
     for (int _serialF = 0; _serialF < NUM_SENSORS; _serialF++) {
       Serial.print(F[_serialF]);
+      Serial.print("\t");
+    }
+    Serial.print("| C\t");
+    for (int _serialC = 0; _serialC < 2; _serialC++) {
+      Serial.print(C[_serialC]);
       Serial.print("\t");
     }
     Serial.println("");
@@ -382,117 +544,46 @@ void SerialCalibrateSensor() {
   }
 }
 
-void SW() {
+// SW() : กด A = calibrate, กด B กี่ครั้งก็ได้ แล้วรอ SW_TIMEOUT ms -> คืนค่าจำนวนครั้งที่กด B
+// เช่น  SW();  แล้วใช้ switch (Mode)  หรือ  int m = SW();
+#define SW_TIMEOUT 1000
+int Mode = 0; // จำนวนครั้งที่กด B ล่าสุด (SW() ตั้งค่าให้อัตโนมัติ ใช้ใน Mission ได้เลย)
+int SW() {
   MotorStop();
+  int count = 0;
+  unsigned long lastPress = 0;
 
   while (1) {
-
     if (SW_B_PRESS() == PRESS) {
-      delay(20);                 // debounce
-      while (SW_B_PRESS() == PRESS); // รอปล่อย
-      break;                     // ออกโหมดตั้งค่า
+      delay(20); // debounce
+      while (SW_B_PRESS() == PRESS)
+        ; // รอปล่อย
+      delay(20);
+      count++;
+      Beep(50); // บี๊บ 1 ครั้งต่อการกด 1 ครั้ง
+      Serial.print("B x");
+      Serial.println(count);
+      lastPress = millis();
     }
 
-    if (SW_A_PRESS() == PRESS) {
-      delay(20);                 // debounce
+    // กด B แล้วไม่กดเพิ่มภายใน SW_TIMEOUT -> จบ คืนค่าจำนวนครั้ง
+    if (count > 0 && millis() - lastPress > SW_TIMEOUT) {
+      Mode = count;
+      Serial.print("Mode = ");
+      Serial.println(count);
+      return count;
+    }
+
+    if (count == 0 && SW_A_PRESS() == PRESS) {
+      delay(20); // debounce
       BeepBeep();
-      while (SW_A_PRESS() == PRESS); // รอปล่อย
-      CaliberateRobotSensor();   // calibrate ครั้งเดียว
+      while (SW_A_PRESS() == PRESS)
+        ;                      // รอปล่อย
+      CaliberateRobotSensor(); // calibrate ครั้งเดียว
       BeepBeep();
     }
   }
 }
-
-
-
-
-void ModeSpdPID(int moD, int maX, int miN){
-  ModePidStatus = moD;
-  MaxSpeed = maX;
-  MinSpeed = miN;
-}
-
-
-
-
-void Dottedline(int Dot){
-  dottedline = Dot;
-}
-
-int readPosition(int Track, int noise) {
-  unsigned char i, online = 0;
-  unsigned long avg = 0;
-  unsigned int sum = 0;
-  static int last_value = 0;
-  ReadCalibrate();
-  for (i = sensor_L; i <= sensor_R; i++) {
-    int values = F[i];
-    if (values > Track) {
-      online = 1;
-    }
-    if (values > noise) {
-      avg += (long)(values) * (i * 1000);
-      sum += values;
-    }
-  }
-  if (!online) {
-    if (dottedline) {
-      return last_value;
-    }
-    if (last_value < (NUM_SENSORS - 1) * 1000) 
-    {
-      return 0;
-    } else {
-      return 15000;
-    }
-  }
-  last_value = avg / sum;
-  return last_value;
-}
-
-void PID(int Speed, float Kp, float Kd) {
-  
-  int Pos = readPosition(250, 50);
-   int Error = Pos - ((NUM_SENSORS - 1) * 1000 / 2);
-
-  int PID_Value = (Kp * Error) + (Kd * (Error - LastError));
-  LastError = Error;
-  int LeftPower = Speed + PID_Value;
-  int RightPower = Speed - PID_Value;
-  switch (ModePidStatus) {
-    case 0:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = MinSpeed;
-      break;
-    case 1:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < MinSpeed) LeftPower = MinSpeed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < MinSpeed) RightPower = MinSpeed;
-      break;
-    case 2:
-      if (LeftPower > LeftBaseSpeed) LeftPower = LeftBaseSpeed;
-      if (LeftPower < -LeftBaseSpeed) LeftPower = -LeftBaseSpeed;
-      if (RightPower > RightBaseSpeed) RightPower = RightBaseSpeed;
-      if (RightPower < -RightBaseSpeed) RightPower = -RightBaseSpeed;
-      break;
-    case 3:
-        if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = -Speed;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = -Speed;
-      break;
-    default:
-      if (LeftPower > MaxSpeed) LeftPower = MaxSpeed;
-      if (LeftPower < 0) LeftPower = 0;
-      if (RightPower > MaxSpeed) RightPower = MaxSpeed;
-      if (RightPower < 0) RightPower = 0;
-  }
-  Motor(LeftPower, RightPower);
-}
-
 
 void TurnLeft() {
   Motor(-LTurnSpdL, LTurnSpdR);
@@ -566,60 +657,72 @@ void TrackSelect(int spd, char x) {
 }
 
 void TrackCrossL(int Speed, float Kp, float Kd, char select) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
     ReadCalibrate();
     if (F[4] >= Ref && F[7] >= Ref) {
       break;
     }
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
   }
   TrackSelect(Speed, select);
 }
 
 void TrackCrossR(int Speed, float Kp, float Kd, char select) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
     ReadCalibrate();
     if (F[8] >= Ref && F[11] >= Ref) {
       break;
     }
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
   }
   TrackSelect(Speed, select);
 }
 
 void TrackCrossC(int Speed, float Kp, float Kd, char select) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
     ReadCalibrate();
     if (F[5] >= Ref && F[10] >= Ref) {
       break;
     }
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
   }
   TrackSelect(Speed, select);
 }
 
 void TrackCross(int Speed, float Kp, float Kd, char select) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
     ReadCalibrate();
     if ((F[4] >= Ref && F[7] >= Ref) || (F[5] >= Ref && F[10] >= Ref) || (F[8] >= Ref && F[11] >= Ref)) {
       break;
     }
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
   }
   TrackSelect(Speed, select);
 }
 
 void TrackTime(int Speed, float Kp, float Kd, int TotalTime) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   unsigned long StartTime = millis();
   unsigned long EndTime = StartTime + TotalTime;
   while (millis() <= EndTime) {
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
   }
 }
 
 void TrackDistance(int Speed, float Kp, float Kd) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
     if (digitalRead(Dist) == 0) {
       MotorStop();
       Beep(10);
@@ -628,8 +731,10 @@ void TrackDistance(int Speed, float Kp, float Kd) {
   }
 }
 void TrackDistanceUntilObstacle(int Speed, float Kp, float Kd) {
+  BaseSpeed = Speed;
+  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
   while (1) {
-    PID(Speed, Kp, Kd);
+    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
     if (digitalRead(Dist) == 0) {
       MotorStop();
       Beep(10);
@@ -645,20 +750,4 @@ void TrackDistanceUntilObstacle(int Speed, float Kp, float Kd) {
   }
 }
 
-
-void SerialPosition() {
-  while (1) {
-    int Pos = readPosition(250, 50);
-    int Error_F = Pos - (NUM_SENSORS - 1) * 1000 / 2;
-    Serial.print("Pos = ");
-    Serial.print(Pos);
-    Serial.print("                  Error = ");
-    Serial.println(Error_F);
-    delay(50);
-  }
-}
-
-
-
-
-
+#include "robotracer.h" // RoboTracer, RoboTracerSegment, SerialMarker

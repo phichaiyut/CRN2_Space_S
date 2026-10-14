@@ -1,8 +1,8 @@
 #define PH1 3
-#define EN1 5 
+#define EN1 5
 
-#define PH2 2 
-#define EN2 6 
+#define PH2 2
+#define EN2 6
 
 void Motor1(int Pow) {
   bool dir = (Pow >= 0 ? true : false);
@@ -31,6 +31,6 @@ void Move(int leftspeed, int rightspeed, int Movedelay) {
 }
 
 void MotorStop() {
-  Motor(0,0);
+  Motor(0, 0);
   delay(5);
 }
