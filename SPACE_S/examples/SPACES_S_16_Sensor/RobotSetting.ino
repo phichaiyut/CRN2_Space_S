@@ -6,7 +6,9 @@ void robotsetting() {
   TrackLineColor(0);              // สีของเส้น 1 = ดำ , 0 = ขาว
   TrackLineColorC(0);             // สีของเส้น เซนเซอร์ C 1 = ดำ , 0 = ขาว
   ModeSpdPID(0, 100, -25);
-  Dottedline(0); // ไม่มีเส้นประใส่ 0  >> มีเส้นประใส่ 1
+  Dottedline(0);           // ไม่มีเส้นประใส่ 0  >> มีเส้นประใส่ 1
+  SetMarkerCh(1, 0);       // RoboTracer: SetMarkerCh(ช่อง C ฝั่ง Start/Goal, ช่อง C ฝั่ง Curve) ถ้านับผิดฝั่งให้สลับเป็น (0, 1)
+  SetCrossDetect(8, 3000); // RoboTracer: SetCrossDetect(เซนเซอร์หน้าเห็นเส้นกี่ตัว = จุดตัด, เวลาไม่นับ marker หลังเจอจุดตัด ms)
 
   SetKpKd();          // ตั้งค่า kp kd (setspeed.ino)
   SetSpeedForward();  // setup balance เดินหน้า

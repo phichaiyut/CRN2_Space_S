@@ -32,35 +32,50 @@ void Mission() {
   // ===== เลือกโหมดตามจำนวนครั้งที่กดปุ่ม B =====
   switch (Mode) {
     case 1:
-      RoboTracer(50, 0.012, 0.12, 2, 200);
+      // RoboTracer(50, 0.012, 0.12, 2, 200);
+      RoboTracer50();
       break;
+
     case 2:
-      RoboTracer(60, 0.016, 0.14, 2, 100);
+      // RoboTracer(50, 0.012, 0.12, 2, 200);
+      RoboTracer55();
       break;
     case 3:
-      RoboTracer(70, 0.020, 0.24, 2, 100);
+      // RoboTracer(50, 0.012, 0.12, 2, 200);
+      RoboTracer60();
       break;
     case 4:
-      RoboTracer(80, 0.020, 0.24, 2, 100);
+      // RoboTracer(60, 0.016, 0.14, 2, 100);
+      RoboTracer65();
       break;
     case 5:
-      RoboTracer(90, 0.024, 0.36, 2, 100);
+      // RoboTracer(70, 0.020, 0.24, 2, 100);
+      RoboTracer70();
       break;
     case 6:
-      RoboTracer(100, 0.028, 0.36, 2, 100);
+      // RoboTracer(80, 0.020, 0.24, 2, 100);
+      RoboTracer75();
       break;
-    /*____________________ปรับแก้ได้_______________________*/
     case 7:
-      RoboTracer(70, 0.020, 0.24, 2, 100);
+      // RoboTracer(90, 0.024, 0.36, 2, 100);
+      RoboTracer80();
       break;
     case 8:
-      RoboTracer(80, 0.020, 0.24, 2, 100);
+      // RoboTracer(100, 0.028, 0.36, 2, 100);
+      RoboTracer85();
       break;
+    /*____________________ปรับแก้ได้_______________________*/
     case 9:
-      RoboTracer(90, 0.024, 0.36, 2, 100);
+      RoboTracer90();
       break;
     case 10:
-      RoboTracer(100, 0.028, 0.36, 2, 100);
+      RoboTracer95();
+      break;
+    case 11:
+      RoboTracer100();
+      break;
+    case 12:
+      RoboTracer105();
       break;
   }
 } //__________________________ปีักกาห้ามลบ_____________________________

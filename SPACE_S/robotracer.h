@@ -110,7 +110,7 @@ void RoboTracer(int Speed, float Kp, float Kd, int target_Marker, int total_time
     PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
     if (CheckMarker() == MK_GOAL) {
       goal++;
-      tone(BUZZER_PIN, volumesound, 30); // ไม่ block
+      tone(BUZZER_PIN, volumesound, 10); // ไม่ block
       Serial.print("GOAL ");
       Serial.print(goal);
       Serial.print(" t=");

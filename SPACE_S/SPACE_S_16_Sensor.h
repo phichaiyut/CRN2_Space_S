@@ -40,7 +40,7 @@ int ModePidStatus = 0;
 int sensor_L = 0;
 int sensor_R = 15;
 unsigned char dottedline = 0; // ตรวจเส้นประ (1 = ใช่)
-int FRONT_MIN = 200;
+int FRONT_MIN = 500;
 int FRONT_MAX = 900;
 int CENTER_MIN = 200;
 int CENTER_MAX = 900;
