@@ -80,6 +80,7 @@ int analog(int __ch) {
     return analogRead(A6);
   if (__ch == 7)
     return analogRead(A7);
+  return 0;
 }
 
 int digital(int __ch) {
@@ -91,6 +92,7 @@ int digital(int __ch) {
     return digitalRead(12);
   if (__ch == 13)
     return digitalRead(13);
+  return 0;
 }
 
 void SW_A() {
@@ -246,10 +248,6 @@ void WriteEEPROM() {
       MinValue[i] = 1023;
     if (MaxValue[i] > 1023)
       MaxValue[i] = 1023;
-    if (MinValue[i] < 0)
-      MinValue[i] = 0;
-    if (MaxValue[i] < 0)
-      MaxValue[i] = 0;
 
     int addr = EEPROM_DATA_START + (i * 4); // 1 sensor = 4 bytes
 

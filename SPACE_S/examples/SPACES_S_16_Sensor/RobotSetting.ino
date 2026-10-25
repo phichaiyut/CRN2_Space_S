@@ -8,7 +8,7 @@ void robotsetting() {
   ModeSpdPID(0, 100, -25);
   Dottedline(0);           // ไม่มีเส้นประใส่ 0  >> มีเส้นประใส่ 1
   SetMarkerCh(1, 0);       // RoboTracer: SetMarkerCh(ช่อง C ฝั่ง Start/Goal, ช่อง C ฝั่ง Curve) ถ้านับผิดฝั่งให้สลับเป็น (0, 1)
-  SetCrossDetect(8, 3000); // RoboTracer: SetCrossDetect(เซนเซอร์หน้าเห็นเส้นกี่ตัว = จุดตัด, เวลาไม่นับ marker หลังเจอจุดตัด ms)
+  SetCrossDetect(10, 200); // RoboTracer: SetCrossDetect(เซนเซอร์หน้าเห็นเส้นกี่ตัว = จุดตัด, เวลาไม่นับ marker หลังเจอจุดตัด ms)
 
   SetKpKd();          // ตั้งค่า kp kd (setspeed.ino)
   SetSpeedForward();  // setup balance เดินหน้า
@@ -17,7 +17,7 @@ void robotsetting() {
   ReadEEPROM(); // ดึงค่าแสงที่เก็บไว้ อออกมา
 
   SetValueLine(500);  // ค่าแสง Track แยก
-  SetValueLineC(500); // ค่าแสง Track แยก เซนเซอร์ C
+  SetValueLineC(800); // ค่าแสง Track แยก เซนเซอร์ C
 
   // SerialSensor();           // Serial Monitor ค่าของ Sensor
   // SerialCalibrateSensor();  // Serial Monitor ค่าของ Sensor ที่ Calibrate แล้ว

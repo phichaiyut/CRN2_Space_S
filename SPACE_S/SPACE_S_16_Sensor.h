@@ -130,6 +130,7 @@ int analog(int __ch) {
     return analogRead(A6);
   if (__ch == 7)
     return analogRead(A7);
+  return 0;
 }
 
 int digital(int __ch) {
@@ -141,6 +142,7 @@ int digital(int __ch) {
     return digitalRead(12);
   if (__ch == 13)
     return digitalRead(13);
+  return 0;
 }
 
 void SW_A() {

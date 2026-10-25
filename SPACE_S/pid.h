@@ -231,30 +231,4 @@ void SerialPosition() {
   }
 }
 
-void TrackMarker(int Speed, float Kp, float Kd, int finish_marker, int TotalTime) {
-  BaseSpeed = Speed;
-  InitialSpeed(); // คำนวณ LeftBaseSpeed / RightBaseSpeed จากตารางชดเชย
-  int check_marker = 0;
-  while (1) {
-    PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
-    ReadCalibrateC();
-    if (C[0] < RefC && C[1] > RefC) { // detect marker
-      PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
-      ReadCalibrateC();
-      if (C[0] < RefC && C[1] > RefC) { // เช็คซ้ำรอบที่ 2 ยืนยันว่าเป็น marker จริง
-        check_marker++;
-        if (check_marker == finish_marker) {
-          break;
-        }
-        for (int n = 0; n < 3; n++) { // ผ่าน marker แล้วให้วิ่งต่ออีก 3 รอบเพื่อให้พ้น marker
-          do {
-            PID(LeftBaseSpeed, RightBaseSpeed, Kp, Kd);
-            ReadCalibrateC();
-          } while (C[0] < RefC && C[1] > RefC); // วิ่งจนเซนเซอร์ C ทั้งสองตัวพ้น marker
-        }
-      }
-    }
-  }
-  TrackTime(30, Kp, Kd, TotalTime);
-}
 // RoboTracer ย้ายไปอยู่ใน robotracer.h (ต้องใช้ TrackTime ที่ประกาศทีหลัง)
