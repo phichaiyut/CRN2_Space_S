@@ -147,7 +147,7 @@ int readPosition(int Track, int noise) {
     if (dottedline) {
       return last_value;
     }
-    if (last_value < (NUM_SENSORS - 1) * 1000) {
+    if (last_value < 7500) { // หลุดเส้น: ดูว่าครั้งสุดท้ายอยู่ฝั่งไหนของกึ่งกลาง (0-15000)
       return 0;
     } else {
       return 15000;

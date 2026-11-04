@@ -22,8 +22,8 @@ const int signal_pin = A0;
 int BUZZER_PIN = 10;
 
 int LastError;
-int Ref = 500;
-int RefC = 900;
+uint16_t Ref = 500; // ค่าแสงที่ถือว่าเจอเส้น (uint16_t ให้ตรงกับ F[])
+uint16_t RefC = 900;
 int volumesound = 2700;
 int Dist = 11;
 uint8_t F_PIN[NUM_SENSORS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
@@ -260,6 +260,10 @@ void ReadC() {
 void ReadCalibrate() {
   Read();
   for (int i = 0; i < NUM_SENSORS; i++) {
+    if (MaxValue[i] <= MinValue[i]) { // ยังไม่ได้คาลิเบรต กัน map() หารด้วยศูนย์
+      F[i] = 0;
+      continue;
+    }
     F[i] = constrain(F[i], MinValue[i], MaxValue[i]);
     int x;
     if (LineColor == 0)
@@ -278,6 +282,10 @@ void ReadCalibrate() {
 void ReadCalibrateC() {
   ReadC();
   for (int i = 0; i < 2; i++) {
+    if (MaxValueC[i] <= MinValueC[i]) { // ยังไม่ได้คาลิเบรต กัน map() หารด้วยศูนย์
+      C[i] = 0;
+      continue;
+    }
     C[i] = constrain(C[i], MinValueC[i], MaxValueC[i]);
     int x;
     if (LineColorC == 0)
@@ -378,11 +386,11 @@ void CalibrateSensor(int pauseTime, int samples) {
   }
   for (int i = 0; i < NUM_SENSORS; i++) {
     MinValue[i] += 10;
-    MaxValue[i] -= 40;
+    MaxValue[i] = (MaxValue[i] > 40) ? MaxValue[i] - 40 : 0; // กัน uint16_t ติดลบ
   }
   for (int i = 0; i < 2; i++) {
     MinValueC[i] += 10;
-    MaxValueC[i] -= 40;
+    MaxValueC[i] = (MaxValueC[i] > 40) ? MaxValueC[i] - 40 : 0; // กัน uint16_t ติดลบ
   }
 }
 
@@ -401,7 +409,7 @@ void CalibrateSensorC(int pauseTime, int samples) {
   }
   for (int i = 0; i < 2; i++) {
     MinValueC[i] += 10;
-    MaxValueC[i] -= 40;
+    MaxValueC[i] = (MaxValueC[i] > 40) ? MaxValueC[i] - 40 : 0; // กัน uint16_t ติดลบ
   }
 }
 

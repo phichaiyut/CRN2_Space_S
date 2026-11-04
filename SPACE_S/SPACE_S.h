@@ -14,7 +14,7 @@ uint16_t F[NUM_SENSORS];
 int BUZZER_PIN = 10;
 
 int LastError;
-int Ref = 500;
+uint16_t Ref = 500; // ค่าแสงที่ถือว่าเจอเส้น (uint16_t ให้ตรงกับ F[])
 int volumesound = 2700;
 
 uint8_t F_PIN[NUM_SENSORS] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -203,6 +203,10 @@ void Read() {
 void ReadCalibrate() {
   Read();
   for (int i = 0; i < NUM_SENSORS; i++) {
+    if (MaxValue[i] <= MinValue[i]) { // ยังไม่ได้คาลิเบรต กัน map() หารด้วยศูนย์
+      F[i] = 0;
+      continue;
+    }
     int x;
     if (LineColor == 0)
       x = map(F[i], MinValue[i], MaxValue[i], 1000, 0);
@@ -274,49 +278,46 @@ void CalibrateSensor(int pauseTime, int samples) {
   }
   for (int i = 0; i < NUM_SENSORS; i++) {
     MinValue[i] += 10;
-    MaxValue[i] -= 40;
+    MaxValue[i] = (MaxValue[i] > 40) ? MaxValue[i] - 40 : 0; // กัน uint16_t ติดลบ
   }
 }
 
 void ReadEEPROM() {
-  if (EEPROM.read(100) != 0xAA) {
+  if (EEPROM.read(EEPROM_FLAG_ADDR) != 0xAA) {
     Serial.println(F("EEPROM not calibrated"));
     return;
   }
 
   for (int i = 0; i < NUM_SENSORS; i++) {
-    int addr = i * 4;
+    int addr = EEPROM_DATA_START + (i * 4);
 
     EEPROM.get(addr, MinValue[i]);
     EEPROM.get(addr + 2, MaxValue[i]);
+  }
 
-    // แสดงผลทาง Serial
-    Serial.println("Load EEPROM");
-    Serial.println("  ");
-    Serial.print("SensorValue (");
-    // MinValue
-    for (int i = 0; i < NUM_SENSORS; i++) {
-      Serial.print(MinValue[i]);
-      if (i < NUM_SENSORS - 1)
-        Serial.print(",");
-      else
-        Serial.print(",");
-    }
-    // MaxValue
-    for (int i = 0; i < NUM_SENSORS; i++) {
-      Serial.print(MaxValue[i]);
-      if (i < NUM_SENSORS - 1)
-        Serial.print(",");
-      else
-        Serial.println(");");
-    }
+  // แสดงผลทาง Serial (หลังโหลดครบทุกตัวแล้ว)
+  Serial.println("Load EEPROM");
+  Serial.println("  ");
+  Serial.print("SensorValue (");
+  // MinValue
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    Serial.print(MinValue[i]);
+    Serial.print(",");
+  }
+  // MaxValue
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    Serial.print(MaxValue[i]);
+    if (i < NUM_SENSORS - 1)
+      Serial.print(",");
+    else
+      Serial.println(");");
   }
 
   Serial.println(F("------------------------"));
 }
 
 void CaliberateRobotSensor() {
-  Serial.println("Press SW_B to start caribrate Front Sensor");
+  Serial.println("Press SW_A to start caribrate Front Sensor");
   SW_A();
   Serial.println("Caribrating");
   delay(500);
@@ -439,7 +440,7 @@ int readPosition(int Track, int noise) {
     if (dottedline) {
       return last_value;
     }
-    if (last_value < (NUM_SENSORS - 1) * 1000) {
+    if (last_value < (NUM_SENSORS - 1) * 1000 / 2) { // หลุดเส้น: ดูว่าครั้งสุดท้ายอยู่ฝั่งไหนของกึ่งกลาง
       return 0;
     } else {
       return (NUM_SENSORS - 1) * 1000;
