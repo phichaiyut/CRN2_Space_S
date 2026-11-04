@@ -44,6 +44,11 @@ int FRONT_MIN = 500;
 int FRONT_MAX = 900;
 int CENTER_MIN = 200;
 int CENTER_MAX = 900;
+unsigned int MuxDelayUs = 20; // เวลารอ MUX ต่อช่อง (us)
+
+void SetMuxDelay(unsigned int us) {
+  MuxDelayUs = us;
+}
 
 #include "pid.h" // ModeSpdPID, Dottedline, readPosition, PID, SerialPosition
 
@@ -59,6 +64,10 @@ void RobotSetup() {
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(Dist, INPUT);
   pinMode(signal_pin, INPUT);
+#if defined(__AVR__)
+  // เร่ง ADC: prescaler 128 -> 16 (analogRead ~112us -> ~16us ที่ 16MHz) ความละเอียดลดลงเล็กน้อย พอสำหรับเซนเซอร์เส้น
+  ADCSRA = (ADCSRA & ~0x07) | 0x04;
+#endif
   tone(BUZZER_PIN, 2000, 80);
   delay(100);
   tone(BUZZER_PIN, 1000, 80);
@@ -240,7 +249,7 @@ void SensorValue(uint16_t minF0, uint16_t minF1, uint16_t minF2, uint16_t minF3,
 
 int analog16(int channel) {
   my_mux.channel(channel);
-  delayMicroseconds(100); // เพิ่มความหน่วงเวลาเพื่อให้มั่นใจว่า MUX ได้เลือกช่องสัญญาณเรียบร้อยแล้ว
+  delayMicroseconds(MuxDelayUs); // รอ MUX สลับช่อง (เดิม 100us; ถ้าค่าเพี้ยน/กระโดด ให้เพิ่มด้วย SetMuxDelay())
   int val = analogRead(signal_pin);
   return val;
 }

@@ -128,22 +128,23 @@ void Dottedline(int Dot) {
 }
 
 int readPosition(int Track, int noise) {
-  unsigned char i, online = 0;
-  unsigned long avg = 0;
-  unsigned int sum = 0;
   static int last_value = 0;
+  bool online = false;
+  unsigned long avg = 0; // ผลรวม (ค่า x ตำแหน่ง) — ยังไม่คูณ 1000
+  unsigned int sum = 0;
   ReadCalibrate();
-  for (i = sensor_L; i <= sensor_R; i++) {
-    int values = F[i];
+  const uint8_t L = sensor_L, R = sensor_R; // อ่าน global ครั้งเดียว
+  for (uint8_t i = L; i <= R; i++) {
+    int values = F[i]; // F หลังคาลิเบรตอยู่ในช่วง 0-1000
     if (values > Track) {
-      online = 1;
+      online = true;
     }
     if (values > noise) {
-      avg += (long)(values) * (i * 1000);
+      avg += (unsigned int)values * i; // ≤ 1000*15 = 15000 → คูณ 16 บิต ไม่ต้องใช้ long
       sum += values;
     }
   }
-  if (!online) {
+  if (!online || sum == 0) { // sum == 0 กันหารด้วยศูนย์ (กรณี Track < noise)
     if (dottedline) {
       return last_value;
     }
@@ -153,7 +154,7 @@ int readPosition(int Track, int noise) {
       return 15000;
     }
   }
-  last_value = avg / sum;
+  last_value = (avg * 1000UL) / sum; // คูณ 1000 ครั้งเดียวตอนท้าย (สูงสุด ~240M ยังพอใน unsigned long)
   return last_value;
 }
 

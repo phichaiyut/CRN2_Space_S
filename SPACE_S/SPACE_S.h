@@ -39,6 +39,10 @@ void RobotSetup() {
   pinMode(PH2, OUTPUT);
   pinMode(EN2, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
+#if defined(__AVR__)
+  // เร่ง ADC: prescaler 128 -> 16 (analogRead ~112us -> ~16us ที่ 16MHz) ความละเอียดลดลงเล็กน้อย พอสำหรับเซนเซอร์เส้น
+  ADCSRA = (ADCSRA & ~0x07) | 0x04;
+#endif
   tone(BUZZER_PIN, 2000, 80);
   delay(100);
   tone(BUZZER_PIN, 1000, 80);
@@ -421,22 +425,22 @@ void Dottedline(int Dot) {
 }
 
 int readPosition(int Track, int noise) {
-  unsigned char i, online = 0;
-  unsigned long avg = 0;
-  unsigned int sum = 0;
   static int last_value = 0;
+  bool online = false;
+  unsigned long avg = 0; // ผลรวม (ค่า x ตำแหน่ง) — ยังไม่คูณ 1000
+  unsigned int sum = 0;
   ReadCalibrate();
-  for (i = 0; i < NUM_SENSORS; i++) {
-    int values = F[i];
+  for (uint8_t i = 0; i < NUM_SENSORS; i++) {
+    int values = F[i]; // F หลังคาลิเบรตอยู่ในช่วง 0-1000
     if (values > Track) {
-      online = 1;
+      online = true;
     }
     if (values > noise) {
-      avg += (long)(values) * (i * 1000);
+      avg += (unsigned int)values * i; // ≤ 1000*7 → คูณ 16 บิต ไม่ต้องใช้ long
       sum += values;
     }
   }
-  if (!online) {
+  if (!online || sum == 0) { // sum == 0 กันหารด้วยศูนย์ (กรณี Track < noise)
     if (dottedline) {
       return last_value;
     }
@@ -446,7 +450,7 @@ int readPosition(int Track, int noise) {
       return (NUM_SENSORS - 1) * 1000;
     }
   }
-  last_value = avg / sum;
+  last_value = (avg * 1000UL) / sum; // คูณ 1000 ครั้งเดียวตอนท้าย
   return last_value;
 }
 
@@ -503,22 +507,22 @@ void PID(int Speed, float Kp, float Kd) {
 }
 
 int readPosition_8_16(int Track, int noise) {
-  unsigned char i, online = 0;
-  unsigned long avg = 0;
-  unsigned int sum = 0;
   static int last_value = 0;
+  bool online = false;
+  unsigned long avg = 0; // ผลรวม (ค่า x ตำแหน่ง) — ยังไม่คูณ 1000
+  unsigned int sum = 0;
   ReadCalibrate();
-  for (i = 0; i < NUM_SENSORS; i++) {
-    int values = F[i];
+  for (uint8_t i = 0; i < NUM_SENSORS; i++) {
+    int values = F[i]; // F หลังคาลิเบรตอยู่ในช่วง 0-1000
     if (values > Track) {
-      online = 1;
+      online = true;
     }
     if (values > noise) {
-      avg += (long)(values) * ((i + 4) * 1000);
+      avg += (unsigned int)values * (i + 4); // ≤ 1000*11 → คูณ 16 บิต
       sum += values;
     }
   }
-  if (!online) {
+  if (!online || sum == 0) { // sum == 0 กันหารด้วยศูนย์
     if (dottedline) {
       return last_value;
     }
@@ -530,7 +534,7 @@ int readPosition_8_16(int Track, int noise) {
       return 15000;
     }
   }
-  last_value = avg / sum;
+  last_value = (avg * 1000UL) / sum; // คูณ 1000 ครั้งเดียวตอนท้าย
   return last_value;
 }
 
