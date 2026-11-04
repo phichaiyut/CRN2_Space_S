@@ -155,7 +155,7 @@ extern int CurveErrThreshold;
 
 /* ---------- ตรวจนับ marker พลาด (ใช้ตอน RoboTracerRun) ---------- */
 // เทียบเวลาจริงของแต่ละช่วงกับเวลาที่คาดจากตอนสำรวจ + ดู Error ในช่วงที่จำว่าเป็นทางตรง
-// ถ้าดูแล้วนับพลาด -> โหมดปลอดภัย: วิ่งความเร็วโค้งไปจน Goal (ไม่ใช้ข้อมูลสำรวจต่อ)
+// ถ้าดูแล้วนับพลาด -> โหมดปลอดภัย: ไม่ใช้ข้อมูลสำรวจต่อ เลือกความเร็วจากโค้งสด (ดู SetLiveCurve) ไปจน Goal
 int SyncEarlyPct = 50; // เจอ Curve marker ก่อน % นี้ของเวลาที่คาด = นับเกิน (ตรวจเฉพาะช่วงที่คาด >= 300 ms)
 int SyncLatePct = 160; // อยู่ในช่วงเดิมนานเกิน % นี้ของเวลาที่คาด + 100 ms = พลาด marker
 int SyncErrTime = 80;  // ช่วงที่จำว่าตรง แต่ |Error| เกิน CurveErrThreshold ต่อเนื่องนานเกินนี้ ms = จริงๆ อยู่ในโค้ง
@@ -169,6 +169,66 @@ void SetSyncCheck(int earlyPct, int latePct, int errMs) {
   SyncEarlyPct = earlyPct;
   SyncLatePct = latePct;
   SyncErrTime = errMs;
+}
+
+/* ---------- ตรวจโค้งสดจากเส้น (ใช้ตอน RoboTracerRun) ---------- */
+// ดู |Error| ของ PID ที่กรองแล้วตลอดการวิ่ง -> รู้ว่าตอนนี้อยู่ในโค้งหรือไม่
+//   อยู่ในโค้ง = ใช้ความเร็วโค้ง, พ้นโค้ง = กลับไปความเร็วตรง (ไม่ค้างความเร็วโค้ง)
+//   ใช้ทั้งโหมดปกติ (ทางที่จำว่าตรงแต่เจอโค้งจริง) และโหมดปลอดภัย (ไม่เชื่อผลสำรวจ ใช้ค่านี้อย่างเดียว)
+// กันแกว่ง: hysteresis (เกณฑ์เข้า > เกณฑ์ออก) + ต้องเกิน/ต่ำกว่าเกณฑ์ต่อเนื่องตามเวลา + ค้างในโค้งขั้นต่ำ
+int LiveCurveEnter = 0;     // |Error| กรองแล้วเกินนี้ = เข้าโค้ง (0 = ใช้ CurveErrThreshold)
+int LiveCurveExitPct = 50;  // ต่ำกว่า % นี้ของเกณฑ์เข้า = พ้นโค้ง
+int LiveCurveOnTime = 30;   // ms ต้องเกินเกณฑ์เข้าต่อเนื่อง ถึงจะนับว่าเข้าโค้ง
+int LiveCurveOffTime = 200; // ms ต้องต่ำกว่าเกณฑ์ออกต่อเนื่อง ถึงจะนับว่าพ้นโค้ง
+int LiveCurveMinHold = 250; // ms เข้าโค้งแล้วต้องใช้ความเร็วโค้งอย่างน้อยเท่านี้
+#define LIVE_FILTER_SHIFT 2 // กรอง |Error| แบบค่าเฉลี่ยเคลื่อนที่ (ใหญ่ = เรียบแต่ช้า)
+
+// SetLiveCurve(เกณฑ์เข้า, % เกณฑ์ออก, ms เข้า, ms ออก, ms ค้างขั้นต่ำ); เกณฑ์เข้า 0 = ใช้ CurveErrThreshold, ค่าลบ = ปิด
+// สลับความเร็วไปมาในโค้งยาว = ลด % เกณฑ์ออก หรือเพิ่ม ms ออก, ลดความเร็วช้าไปตอนเข้าโค้ง = ลดเกณฑ์เข้า / ms เข้า
+void SetLiveCurve(int enterErr, int exitPct, int onMs, int offMs, int minHoldMs) {
+  LiveCurveEnter = enterErr;
+  LiveCurveExitPct = exitPct;
+  LiveCurveOnTime = onMs;
+  LiveCurveOffTime = offMs;
+  LiveCurveMinHold = minHoldMs;
+}
+
+long lcFilt = 0; // |Error| กรองแล้ว
+bool lcIn = false;
+unsigned long lcSince = 0, lcEnterAt = 0;
+
+void ResetLiveCurve() {
+  lcFilt = 0;
+  lcIn = false;
+  lcSince = 0;
+}
+
+// เรียกหลัง PID() ทุกรอบ คืน true = ตอนนี้อยู่ในโค้ง
+bool UpdateLiveCurve() {
+  if (LiveCurveEnter < 0)
+    return false;
+  lcFilt += ((long)abs(LastError) - lcFilt) >> LIVE_FILTER_SHIFT;
+  long enter = LiveCurveEnter ? LiveCurveEnter : CurveErrThreshold;
+  long exitTh = enter * LiveCurveExitPct / 100;
+  unsigned long now = millis();
+  // เงื่อนไขที่จะเปลี่ยนสถานะ: นอกโค้ง -> เกินเกณฑ์เข้า, ในโค้ง -> ต่ำกว่าเกณฑ์ออก (ช่วงกลางไม่เปลี่ยน)
+  bool toggle = lcIn ? (lcFilt < exitTh) : (lcFilt > enter);
+  if (!toggle) {
+    lcSince = 0;
+    return lcIn;
+  }
+  if (!lcSince)
+    lcSince = now ? now : 1;
+  if (!lcIn && now - lcSince >= (unsigned long)LiveCurveOnTime) {
+    lcIn = true;
+    lcEnterAt = now;
+    lcSince = 0;
+  } else if (lcIn && now - lcSince >= (unsigned long)LiveCurveOffTime &&
+             now - lcEnterAt >= (unsigned long)LiveCurveMinHold) {
+    lcIn = false;
+    lcSince = 0;
+  }
+  return lcIn;
 }
 
 // แกนกลางของ RoboTracerSegment / RoboTracerRun
@@ -198,11 +258,14 @@ void RoboTracerSegmentCore(const int Spd[], const float Kp[], const float Kd[], 
   unsigned long lastRamp = millis();
   unsigned long segStart = millis();
 
+  bool lcPrev = false; // DEBUG สถานะโค้งสดรอบก่อน
   ResetMarker();
+  ResetLiveCurve();
   while (1) {
     PID(LeftBaseSpeed, RightBaseSpeed, kp, kd);
     int mk = CheckMarker();
-    unsigned long el = millis() - segStart; // เวลาที่อยู่ในช่วงนี้แล้ว
+    bool live = learned && UpdateLiveCurve(); // ตอนนี้อยู่ในโค้งจริงหรือไม่ (ตรวจต่อเนื่องทุกรอบ)
+    unsigned long el = millis() - segStart;   // เวลาที่อยู่ในช่วงนี้แล้ว
     int next = tgt;
     bool newSeg = false;
     const __FlashStringHelper *lost = NULL; // != NULL = นับ marker พลาด (เหตุผล)
@@ -262,14 +325,9 @@ void RoboTracerSegmentCore(const int Spd[], const float Kp[], const float Kd[], 
       expect = learned ? ExpectSegTime(seg, BaseSpeed, Spd[SEG_ROW(seg)]) : 0;
     }
 
-    if (lost) { // -> โหมดปลอดภัย: ความเร็วโค้งไปจน Goal
+    if (lost) { // -> โหมดปลอดภัย: เลิกใช้ผลสำรวจ เลือกความเร็วจากโค้งสดอย่างเดียว
       safe = true;
       brakeAt = -1;
-      row = 1;
-      spdFrom = BaseSpeed;
-      spdTo = Spd[row];
-      kpFrom = kp;
-      kdFrom = kd;
       tone(BUZZER_PIN, volumesound * 2, 300);
       Serial.print(F("SAFE MODE seg "));
       Serial.print(seg);
@@ -277,12 +335,34 @@ void RoboTracerSegmentCore(const int Spd[], const float Kp[], const float Kd[], 
       Serial.println(lost);
     } else if (next != tgt && !safe) {
       tgt = next;
-      row = SEG_ROW(tgt);
+    }
+
+    // เลือกแถวความเร็วใหม่ทุกรอบ
+    //   learned: โค้ง (แถว 1) เมื่อผลสำรวจบอกว่าโค้ง/เบรกล่วงหน้า หรือ ตรวจสดว่าอยู่ในโค้ง, นอกนั้นตรง (แถว 0)
+    //   safe   : ไม่เชื่อผลสำรวจ ใช้โค้งสดอย่างเดียว -> พ้นโค้งแล้วกลับความเร็วตรง
+    int want;
+    if (learned) {
+      int plan = safe ? 0 : SEG_ROW(tgt);
+      want = (plan == 1 || live) ? 1 : 0;
+    } else {
+      want = SEG_ROW(tgt);
+    }
+    if (want != row) {
+      if (learned && live != lcPrev)
+        Serial.println(live ? F("LIVE CURVE in") : F("LIVE CURVE out")); // DEBUG
+      row = want;
       spdFrom = BaseSpeed; // เริ่ม ramp จากความเร็วปัจจุบัน (เผื่อ ramp เดิมยังไม่จบ)
       spdTo = Spd[row];
       kpFrom = kp;
       kdFrom = kd;
+      if (BaseSpeed == spdTo) { // ความเร็วเท่าเดิม ไม่มี ramp -> ใช้ Kp/Kd แถวใหม่เลย
+        if (Kp)
+          kp = Kp[row];
+        if (Kd)
+          kd = Kd[row];
+      }
     }
+    lcPrev = live;
 
     if (BaseSpeed != spdTo && millis() - lastRamp >= 10) {
       lastRamp = millis();
